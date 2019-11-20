@@ -1,33 +1,20 @@
-
----
-title: "Music Insights"
-author: "Chuck Franklin"
-output:
-  html_document:
-    df_print: paged
----
-
-Firt we need tidyverse to handle data importing and wrangling
-
-```{r}
+## ------------------------------------------------------------------------
 suppressMessages(install.packages("tidyverse", repos="http://cran.us.r-project.org"))
 suppressMessages(library("tidyverse"))
-```
 
-```{r}
+
+## ------------------------------------------------------------------------
 survey <- read_csv("https://raw.githubusercontent.com/introdsci/MusicSurvey/master/music-survey.csv")
 preferences <- read_csv("https://raw.githubusercontent.com/introdsci/MusicSurvey/master/preferences-survey.csv")
-```
 
-Ignore these next two things (just testing out functions)
-```{r}
+
+## ------------------------------------------------------------------------
 nrow(survey)
 colnames(survey)
 
-```
 
-We need to clean some data frame column names.
-```{r}
+
+## ------------------------------------------------------------------------
 colnames(survey)[colnames(survey)=="Timestamp"] <- "time_submitted"
 colnames(survey)[colnames(survey)=="First, we are going to create a pseudonym for you to keep this survey anonymous (more or less). Which pseudonym generator would you prefer?"] <- "pseudonym_generator"
 colnames(survey)[colnames(survey)=="What is your pseudonym?"] <- "pseudonym"
@@ -41,32 +28,27 @@ colnames(survey)[colnames(survey)=="Song"] <- "favorite_song"
 colnames(survey)[colnames(survey)=="Link to song (on Youtube or Vimeo)"] <- "favorite_song_link"
 
 colnames(survey)
-```
 
-Now we should load some useful libraries.
-```{r}
+
+## ------------------------------------------------------------------------
 library("dplyr")
 library("tidyr")
-```
 
-Let's create a "Person" table to include all of the respondents in the survey.
-```{r}
+
+## ------------------------------------------------------------------------
 Person <- tibble(time_submitted = survey$time_submitted, pseudonym_generator = survey$pseudonym_generator, pseudonym = survey$pseudonym, sex = survey$sex, academic_major = survey$academic_major, academic_level = survey$academic_level, year_born = survey$year_born)
-```
 
-Then, we can make a table for the favorite songs submitted.
-```{r}
+
+## ------------------------------------------------------------------------
 Favorite_song <- tibble(pseudonym = survey$pseudonym, artist = survey$favorite_song_artist, song = survey$favorite_song, link = survey$favorite_song_link)
-```
 
-The date/time needs to be more parseable.
-```{r}
+
+## ------------------------------------------------------------------------
 survey$time_submitted <- as.POSIXlt(parse_datetime(survey$time_submitted, "%m/%d/%y %H:%M"))
 survey$time_submitted[1]$min
-```
 
-We need to convert the categorical data to factors.
-```{r}
+
+## ------------------------------------------------------------------------
 Person$academic_level <- as.factor(Person$academic_level)
 levels(Person$academic_level)
 
@@ -76,51 +58,42 @@ levels(Person$academic_major)
 levels(Person$academic_major)[levels(Person$academic_major)=="Computer information systems"] <- "Computer Information Systems"
 
 levels(Person$academic_major)
-```
 
-Now, we're going to create a new table called "Ratings," which will contain the users' pseudonyms, the song artists/titles, and the users' ratings of them.  This will be made up of data from the "preferences" data set, and will be put together using the "gather" function.
-```{r}
+
+## ------------------------------------------------------------------------
 Ratings <- preferences %>% 
             gather(key="artist_song",value="rating",3:45)
 colnames(Ratings)[colnames(Ratings)=="What was your pseudonym?"] <- "pseudonym"
 Ratings$pseudonym <- as.factor(Ratings$pseudonym)
 Ratings$artist_song <- as.factor(Ratings$artist_song)
 head(Ratings)
-```
 
-```{r}
+
+## ------------------------------------------------------------------------
 library("ggplot2")
 
 ggplot(Ratings, aes(x = artist_song, y = rating)) + theme(axis.text.x = element_text(angle = 60, hjust = 1)) + geom_bar(stat = "identity")
 
-```
 
-##This next chart shows the distribution of the ratings given to the songs in the survey.  They appear to form a sort of bell curve, as the majority are in the middle, but there are still a good amount of 10's.
-```{r}
+
+## ------------------------------------------------------------------------
 ggplot(Ratings, aes(x = rating)) + geom_histogram(binwidth = 1)
-```
 
-This next graph is a box plot which shows how each of the users spread out their ratings across the songs in the survey.
-```{r}
+
+## ------------------------------------------------------------------------
 ggplot(Ratings, aes(x = pseudonym, y = rating)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 60, hjust = 1))
 ggplot(Ratings, aes(x = pseudonym, y = rating)) + geom_violin() + theme(axis.text.x = element_text(angle = 60, hjust = 1))
 ggplot(Ratings, aes(x = pseudonym, y = rating)) + geom_jitter() + theme(axis.text.x = element_text(angle = 60, hjust = 1))
-```
 
-There was an issue in the data recorded where two people had submitted ratings of songs under the same pseudonym, and that happened twice.
-This is what Professor Buffardi has come up with to filter out one of each pair of results.
-He wrote this to just take the earliest submnission, so even if there were more than two for each pseudonym, it would just take the first one.
 
-```{r}
+## ------------------------------------------------------------------------
 earliest_time <- min(Ratings$Timestamp[Ratings$pseudonym=="Angel Angel"])
 Ratings <- Ratings %>% filter(!(pseudonym=="Angel Angel" & Timestamp!=earliest_time))
 earliest_time <- min(Ratings$Timestamp[Ratings$pseudonym=="Mission Theory"])
 Ratings <- Ratings %>% filter(!(pseudonym=="Mission Theory" & Timestamp!=earliest_time))
-```
 
 
-
-```{r}
+## ------------------------------------------------------------------------
 inner_join(Favorite_song, Ratings, by = "pseudonym")
 
-```
+

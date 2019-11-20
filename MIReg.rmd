@@ -1,0 +1,67 @@
+---
+title: "Music Insight Regression"
+author: "Charles Franklin"
+output:
+  html_document:
+    df_print: paged
+---
+##### In this part of this project, we're going to start looking at models of the data that show how, or whether some of the data might have a correlation  with other data points.
+##### First, we need to load our packages and our data from the previous part of the project.  The "knitr" package has functions to import everything.
+
+```{r message=FALSE}
+include <- function(library_name){
+  if( !(library_name %in% installed.packages()) )
+    install.packages(library_name) 
+  library(library_name, character.only=TRUE)
+}
+include("knitr")
+purl("MusicInsight.rmd", output = "part1.r")
+source("part1.r")
+```
+
+##### Now we should use some of the original data to make some new observations.  We can start with finding out the average rating that each user gave over all of the songs.
+
+```{r}
+avgRating <- Ratings %>%
+  group_by(pseudonym) %>%
+  summarise(average = mean(rating))
+  
+head(avgRating)
+```
+
+##### Another interesting thing we can find out is how many instruments each user put down that they played.  Since the fields for instruments aren't really uniform at all, I've decided that the best way to approach this is to find the one common denominator amongst the entries.  It seems that the ones that contain more than one have a comma separating them, so we can just cound the amount of commas.  The fields thave have no entries can just be assigned a zero.
+
+```{r}
+instrmCt <- survey %>%
+  group_by(pseudonym) %>%
+  summarise(instrument_ct = (1 + str_count(instrument_list, ",")))
+
+instrmCt[is.na(instrmCt)] = 0
+head(instrmCt)
+```
+
+##### Next we can merge those into a new table, as well as some other things from the "Person" table (time submitted, gender, year born, adademic level)
+
+```{r}
+model <- merge(avgRating, instrmCt, by="pseudonym")
+model <- merge(model, tibble(time_submitted = Person$time_submitted, pseudonym = Person$pseudonym, sex = Person$sex, year_born = Person$year_born, academic_level = Person$academic_level), by = "pseudonym")
+
+head(model)
+```
+
+##### Now we can run the data through a linear regression function that will tell us how closely we might be able to predict a certain variable, based on the others.  Just to test it out, I chose the average score as the variable to measure the others against.
+
+```{r}
+modelcheck <- lm(data=model, formula=average~academic_level+instrument_ct+sex+year_born)
+summary(modelcheck)
+```
+
+##### Generally, if something has a strong correlation with another variable, it should have a "p-value" (the value titled "Pr") of 0.05 or less.  Nothing here has shown up as being anywhere near that, so I don't think any of this is very useful for what we're trying to accomplish.
+##### If we take some of the higher valued elements out of the model, some of the lower valued ones might go even lower and be uncovered as something more useful.  Just to try this out, we can take out the academic level, and then see how the rest of the data gets skewed.
+
+```{r}
+modelcheck <- lm(data=model, formula=average~instrument_ct+sex+year_born)
+summary(modelcheck)
+```
+
+##### We can see that the values did change slightly, but still not enough to show a correlation with the average scores.
